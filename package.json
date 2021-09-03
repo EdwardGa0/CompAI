@@ -1,0 +1,27 @@
+{
+  "name": "lolautocomp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "author": "Edward Gao",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.21.1",
+    "dotenv": "^10.0.0",
+    "eslint-config-google": "^0.14.0",
+    "limiter": "^2.1.0",
+    "lodash": "^4.17.21",
+    "mongodb": "^4.1.1",
+    "progress": "^2.0.3"
+  },
+  "devDependencies": {
+    "eslint": "^7.32.0",
+    "eslint-config-standard": "^16.0.3",
+    "eslint-plugin-import": "^2.24.2",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^5.1.0"
+  }
+}
