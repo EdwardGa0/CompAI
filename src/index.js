@@ -107,20 +107,19 @@ async function updateMatches() {
 }
 
 async function run() {
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    try {
-      await client.connect();
-      const database = client.db('match_history');
-      collections.summoners = database.collection('summoners');
-      collections.matches = database.collection('matches');
-
+  try {
+    await client.connect();
+    const database = client.db('match_history');
+    collections.summoners = database.collection('summoners');
+    collections.matches = database.collection('matches');
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
       await createSummoners();
       await setPuuids();
       await updateMatches();
-    } finally {
-      await client.close();
     }
+  } finally {
+    await client.close();
   }
 }
 
