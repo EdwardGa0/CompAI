@@ -17,11 +17,11 @@ function input(query) {
 }
 
 const limiterSec = new RateLimiter({
-  tokensPerInterval: 20, interval: 1000,
+  tokensPerInterval: 20, interval: 950,
 });
 
 const limiterMin = new RateLimiter({
-  tokensPerInterval: 100, interval: 120000,
+  tokensPerInterval: 100, interval: 119000,
 });
 
 async function get(region, route, params = {}) {
@@ -38,19 +38,19 @@ async function get(region, route, params = {}) {
     return res.data;
   } catch (error) {
     if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
       switch (error.response.status) {
         case 429: // rate limit exceeded
           await limiterSec.removeTokens(limiterSec.getTokensRemaining());
           await limiterMin.removeTokens(limiterMin.getTokensRemaining());
-          break;
+          return (await get(region, route, params));
+        case 503: // service unavailable
+          return (await get(region, route, params));
         case 403: // Forbidden
           apiKey = await input('Provide valid API key: ');
       }
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
       console.error(error.response.data);
-      console.error(error.response.status);
-      console.error(error.response.headers);
     } else if (error.request) {
       // The request was made but no response was received
       // `error.request` is an instance of XMLHttpRequest in the browser
