@@ -1,7 +1,6 @@
 require('dotenv').config();
 
 const { MongoClient } = require('mongodb');
-const ProgressBar = require('progress');
 const _ = require('lodash');
 
 const lol = require('./lol');
@@ -38,32 +37,18 @@ async function setPuuids() {
   const cursor = collections.summoners.find({
     puuid: { $exists: false },
   });
-  const bar = new ProgressBar(
-      'getting puuids [:bar] :percent :etas',
-      {
-        total: await cursor.count(),
-        width: 30,
-      },
-  );
   for await (const summoner of cursor) {
     const puuid = await lol.summonerToPuuid(summoner);
     if (puuid) {
       const filter = { summonerId: summoner.summonerId };
       const update = { $set: { puuid } };
       await collections.summoners.updateOne(filter, update);
-      bar.tick();
+      console.log('set puuid: ', puuid);
     }
   }
 }
 
 async function addMatches(matchIds) {
-  const bar = new ProgressBar(
-      'adding matches [:bar] :percent :etas',
-      {
-        total: matchIds.length,
-        width: 30,
-      },
-  );
   const options = { upsert: true };
   for (const id of matchIds) {
     const match = await lol.getMatch(id);
@@ -81,26 +66,19 @@ async function addMatches(matchIds) {
       const filter = { matchId: id };
       const update = { $set: filteredMatch };
       await collections.matches.updateOne(filter, update, options);
-      bar.tick();
+      console.log('added match: ', id);
     }
   }
 }
 
 async function updateMatches() {
   const cursor = collections.summoners.find();
-  const bar = new ProgressBar(
-      'getting matchIds [:bar] :percent :etas',
-      {
-        total: await cursor.count(),
-        width: 30,
-      },
-  );
   for await (const summoner of cursor) {
     if (summoner.puuid) {
       const matchIds = await lol.puuidToMatchIds(summoner.puuid);
       if (matchIds && matchIds.length) {
         await addMatches(matchIds);
-        bar.tick();
+        console.log('finished matches');
       }
     }
   }
