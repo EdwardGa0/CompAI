@@ -1,5 +1,5 @@
 {
-  "name": "lolautocomp",
+  "name": "compai",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -10,7 +10,6 @@
   "license": "ISC",
   "dependencies": {
     "axios": "^0.21.1",
-    "cron": "^1.8.2",
     "dotenv": "^10.0.0",
     "eslint-config-google": "^0.14.0",
     "limiter": "^2.1.0",

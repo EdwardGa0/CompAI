@@ -1,7 +1,6 @@
 require('dotenv').config();
 
 const { MongoClient } = require('mongodb');
-const { CronJob } = require('cron');
 const ProgressBar = require('progress');
 const _ = require('lodash');
 
@@ -122,10 +121,7 @@ async function run() {
   }
 }
 
-const job = new CronJob('00 00 00 * * *', function() {
-  const d = new Date();
-  console.log('Midnight:', d);
+// eslint-disable-next-line no-constant-condition
+while (true) {
   run().catch(console.dir);
-});
-
-job.start();
+}
