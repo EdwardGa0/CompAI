@@ -12,15 +12,21 @@ async function getTopSummoners() {
   return summoners;
 }
 
+async function puuidToSummoner(puuid) {
+  const route = `/lol/summoner/v4/summoners/by-puuid/${puuid}`;
+  const data = await riotApi.get('na1', route);
+  if (data) return data;
+}
+
 async function summonerToPuuid(summoner) {
   const route = `/lol/summoner/v4/summoners/${summoner.summonerId}`;
   const data = await riotApi.get('na1', route);
   if (data) return data.puuid;
 }
 
-async function puuidToMatchIds(puuid) {
+async function puuidToMatchIds(puuid, count) {
   const route = `/lol/match/v5/matches/by-puuid/${puuid}/ids`;
-  const params = { count: 100, type: 'ranked' };
+  const params = { count, type: 'ranked' };
   const data = await riotApi.get('americas', route, params);
   if (data) return data;
 }
@@ -33,6 +39,7 @@ async function getMatch(matchId) {
 
 module.exports = {
   getTopSummoners,
+  puuidToSummoner,
   summonerToPuuid,
   puuidToMatchIds,
   getMatch,

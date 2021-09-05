@@ -11,9 +11,76 @@ const client = new MongoClient(
 );
 
 const collections = {};
+const queue = require('fastq').promise(worker, 1);
 
-// create summoner doc if not exist
-async function createSummoners() {
+function daysAgo(n) {
+  const nDaysAgo = new Date();
+  nDaysAgo.setDate(nDaysAgo.getDate() - n);
+  return nDaysAgo;
+}
+
+async function worker(id) {
+  const match = await lol.getMatch(id);
+  if (!match) return;
+
+  // add match
+  const options = { upsert: true };
+  const filteredMatch = {
+    matchId: match.metadata.matchId,
+    gameVersion: match.info.gameVersion,
+    participants: match.info.participants.map((participant) => (
+      _.pick(
+          participant,
+          ['championId', 'championName', 'lane', 'puuid'],
+      )),
+    ),
+  };
+  const filter = { matchId: id };
+  const update = { $set: filteredMatch };
+  await collections.matches.updateOne(filter, update, options);
+
+  // add players
+  const puuids = filteredMatch.participants.map(
+      (participant) => participant.puuid,
+  );
+  const summoners = await Promise.all(
+      puuids.map((puuid) => lol.puuidToSummoner(puuid)),
+  );
+  await collections.summoners.bulkWrite(
+      summoners.map((summoner) =>
+        ({
+          updateOne: {
+            filter: { puuid: summoner.puuid },
+            update: { $set: { ...summoner, lastAnalyzed: daysAgo(3) } },
+            upsert: true,
+          },
+        }),
+      ),
+  );
+  console.log('match', id, 'processed');
+}
+
+
+async function scheduler() {
+  // go through oldest last update summoners and added matches to queue
+  const cursor = await collections.summoners.find().sort( { lastAnalyzed: 1 });
+  for await (const summoner of cursor) {
+    const diff = Math.abs(summoner.lastAnalyzed - new Date());
+    const milliPerGame = 30 * 60 * 1000;
+    const count = Math.min(Math.floor(diff / milliPerGame), 100);
+    if (count > 0) {
+      const matchIds = await lol.puuidToMatchIds(summoner.puuid, count);
+      if (matchIds && matchIds.length) {
+        for (const id of matchIds) {
+          await queue.push(id);
+        }
+      }
+    }
+  }
+}
+
+// create seed summoner doc if not exist
+async function createSeedSummoners() {
   let topSummoners;
   while (!topSummoners || !topSummoners.length) {
     topSummoners = await lol.getTopSummoners();
@@ -33,7 +100,7 @@ async function createSummoners() {
 }
 
 // set puuid for all summoners
-async function setPuuids() {
+async function completeSummoners() {
   const cursor = collections.summoners.find({
     puuid: { $exists: false },
   });
@@ -43,45 +110,14 @@ async function setPuuids() {
       const filter = { summonerId: summoner.summonerId };
       const update = { $set: { puuid } };
       await collections.summoners.updateOne(filter, update);
-      console.log('set puuid: ', puuid);
     }
   }
-}
+  console.log('set puuids');
 
-async function addMatches(matchIds) {
-  const options = { upsert: true };
-  for (const id of matchIds) {
-    const match = await lol.getMatch(id);
-    if (match) {
-      const filteredMatch = {
-        matchId: match.metadata.matchId,
-        gameVersion: match.info.gameVersion,
-        participants: match.info.participants.map((participant) => (
-          _.pick(
-              participant,
-              ['championId', 'championName', 'lane', 'puuid'],
-          )),
-        ),
-      };
-      const filter = { matchId: id };
-      const update = { $set: filteredMatch };
-      await collections.matches.updateOne(filter, update, options);
-      console.log('added match: ', id);
-    }
-  }
-}
-
-async function updateMatches() {
-  const cursor = collections.summoners.find();
-  for await (const summoner of cursor) {
-    if (summoner.puuid) {
-      const matchIds = await lol.puuidToMatchIds(summoner.puuid);
-      if (matchIds && matchIds.length) {
-        await addMatches(matchIds);
-        console.log('finished matches');
-      }
-    }
-  }
+  const filter = { lastAnalyzed: { $exists: false } };
+  const update = { $set: { lastAnalyzed: daysAgo(3) } };
+  await collections.summoners.updateMany(filter, update);
+  console.log('set last analyzed');
 }
 
 async function run() {
@@ -90,11 +126,13 @@ async function run() {
     const database = client.db('match_history');
     collections.summoners = database.collection('summoners');
     collections.matches = database.collection('matches');
+
+    await createSeedSummoners();
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      await createSummoners();
-      await setPuuids();
-      await updateMatches();
+      await completeSummoners();
+      await scheduler();
+      console.log('done');
     }
   } finally {
     await client.close();
