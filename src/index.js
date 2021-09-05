@@ -43,20 +43,13 @@ async function worker(id) {
   const puuids = filteredMatch.participants.map(
       (participant) => participant.puuid,
   );
-  const summoners = await Promise.all(
-      puuids.map((puuid) => lol.puuidToSummoner(puuid)),
-  );
-  await collections.summoners.bulkWrite(
-      summoners.map((summoner) =>
-        ({
-          updateOne: {
-            filter: { puuid: summoner.puuid },
-            update: { $set: { ...summoner, lastAnalyzed: daysAgo(3) } },
-            upsert: true,
-          },
-        }),
-      ),
-  );
+  for (const puuid of puuids) {
+    let summoner = await collections.summoners.findOne({ puuid });
+    if (!summoner) {
+      summoner = await lol.puuidToSummoner(puuid);
+      await collections.summoners.insertOne(summoner);
+    }
+  }
   console.log('match', id, 'processed');
 }
 
@@ -74,6 +67,9 @@ async function scheduler() {
         for (const id of matchIds) {
           await queue.push(id);
         }
+        const filter = { puuid: summoner.puuid };
+        const update = { $set: { lastAnalyzed: new Date() } };
+        collections.summoners.updateOne(filter, update);
       }
     }
   }
