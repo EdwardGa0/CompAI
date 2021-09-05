@@ -4,6 +4,10 @@ const { RateLimiter } = require('limiter');
 const apiKeys = [0, 1, 2].map((i) => process.env[`RIOT_API_KEY${i}`]);
 let keyIndex = 0;
 
+function shiftKeyIndex() {
+  keyIndex = (keyIndex + 1) % apiKeys.length;
+}
+
 const limiterSec = Array(3).fill(new RateLimiter({
   tokensPerInterval: 20, interval: 950,
 }));
@@ -23,6 +27,7 @@ async function get(region, route, params = {}) {
         ...params,
       },
     });
+    shiftKeyIndex();
     return res.data;
   } catch (error) {
     if (error.response) {
@@ -31,7 +36,7 @@ async function get(region, route, params = {}) {
       switch (error.response.status) {
         case 429: // rate limit exceeded
         case 503: // service unavailable
-          keyIndex = (keyIndex + 1) % apiKeys.length;
+          shiftKeyIndex();
           return (await get(region, route, params));
       }
       console.error(error.response.data);
