@@ -19,7 +19,7 @@ async function puuidToSummoner(puuid) {
 }
 
 async function summonerToPuuid(summoner) {
-  const route = `/lol/summoner/v4/summoners/${summoner.summonerId}`;
+  const route = `/lol/summoner/v4/summoners/by-name/${summoner.summonerName}`;
   const data = await riotApi.get('na1', route);
   if (data) return data.puuid;
 }
