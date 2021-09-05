@@ -47,6 +47,7 @@ async function worker(id) {
     let summoner = await collections.summoners.findOne({ puuid });
     if (!summoner) {
       summoner = await lol.puuidToSummoner(puuid);
+      summoner.lastAnalyzed = daysAgo(3);
       await collections.summoners.insertOne(summoner);
     }
   }
@@ -98,15 +99,16 @@ async function createSeedSummoners() {
 // set puuid for all summoners
 async function completeSummoners() {
   const cursor = collections.summoners.find({
-    puuid: { $exists: false },
+    puuid: { $not: { $exists: true, $ne: null } },
   });
   for await (const summoner of cursor) {
-    const puuid = await lol.summonerToPuuid(summoner);
-    if (puuid) {
-      const filter = { summonerId: summoner.summonerId };
-      const update = { $set: { puuid } };
-      await collections.summoners.updateOne(filter, update);
+    let puuid;
+    while (!puuid) {
+      puuid = await lol.summonerToPuuid(summoner);
     }
+    const filter = { summonerId: summoner.summonerId };
+    const update = { $set: { puuid } };
+    await collections.summoners.updateOne(filter, update);
   }
   console.log('set puuids');
 
