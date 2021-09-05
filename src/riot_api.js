@@ -1,19 +1,8 @@
 const axios = require('axios').default;
 const { RateLimiter } = require('limiter');
-const readline = require('readline');
 
-let apiKey = process.env.RIOT_API_KEY;
-
-function input(query) {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise((resolve) => rl.question(query, (ans) => {
-    rl.close();
-    resolve(ans);
-  }));
+if (!process.env.RIOT_API_KEY) {
+  throw new Error('RIOT_API_KEY missing!');
 }
 
 const limiterSec = new RateLimiter({
@@ -31,7 +20,7 @@ async function get(region, route, params = {}) {
     const host = `https://${region}.api.riotgames.com`;
     const res = await axios.get(host + route, {
       params: {
-        api_key: apiKey,
+        api_key: process.env.RIOT_API_KEY,
         ...params,
       },
     });
@@ -47,8 +36,6 @@ async function get(region, route, params = {}) {
           return (await get(region, route, params));
         case 503: // service unavailable
           return (await get(region, route, params));
-        case 403: // Forbidden
-          apiKey = await input('Provide valid API key: ');
       }
       console.error(error.response.data);
     } else if (error.request) {
