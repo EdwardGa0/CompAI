@@ -45,7 +45,7 @@ async function worker(id) {
   );
   for (const puuid of puuids) {
     let summoner = await collections.summoners.findOne({ puuid });
-    if (!summoner) {
+    if (!summoner || _.isEmpty(summoner)) {
       summoner = await lol.puuidToSummoner(puuid);
       summoner.lastAnalyzed = daysAgo(3);
       await collections.summoners.insertOne(summoner);
@@ -71,6 +71,7 @@ async function scheduler() {
         const filter = { puuid: summoner.puuid };
         const update = { $set: { lastAnalyzed: new Date() } };
         collections.summoners.updateOne(filter, update);
+        console.log('summoner puuid', summoner.puuid, 'scheduled');
       }
     }
   }
@@ -78,10 +79,7 @@ async function scheduler() {
 
 // create seed summoner doc if not exist
 async function createSeedSummoners() {
-  let topSummoners;
-  while (!topSummoners || !topSummoners.length) {
-    topSummoners = await lol.getTopSummoners();
-  }
+  const topSummoners = await lol.getTopSummoners();
   const result = await collections.summoners.bulkWrite(
       topSummoners.map((summoner) =>
         ({
@@ -96,22 +94,25 @@ async function createSeedSummoners() {
   console.log(result);
 }
 
-// set puuid for all summoners
 async function completeSummoners() {
+  // set puuid for all summoners
   const cursor = collections.summoners.find({
     puuid: { $not: { $exists: true, $ne: null } },
   });
   for await (const summoner of cursor) {
-    let puuid;
-    while (!puuid) {
-      puuid = await lol.summonerToPuuid(summoner);
-    }
+    const puuid = await lol.summonerToPuuid(summoner);
     const filter = { summonerId: summoner.summonerId };
-    const update = { $set: { puuid } };
-    await collections.summoners.updateOne(filter, update);
+    if (puuid) {
+      const update = { $set: { puuid } };
+      await collections.summoners.updateOne(filter, update);
+    } else {
+      await collections.summoners.deleteMany(filter);
+    }
+    console.log('set puuid of summonerId', summoner.summonerId);
   }
-  console.log('set puuids');
+  console.log('puuids complete');
 
+  // set last analyzed for new summoners
   const filter = { lastAnalyzed: { $exists: false } };
   const update = { $set: { lastAnalyzed: daysAgo(3) } };
   await collections.summoners.updateMany(filter, update);
