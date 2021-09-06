@@ -47,8 +47,10 @@ async function worker(id) {
     let summoner = await collections.summoners.findOne({ puuid });
     if (!summoner || _.isEmpty(summoner)) {
       summoner = await lol.puuidToSummoner(puuid);
-      summoner.lastAnalyzed = daysAgo(3);
-      await collections.summoners.insertOne(summoner);
+      if (summoner) {
+        summoner.lastAnalyzed = daysAgo(3);
+        await collections.summoners.insertOne(summoner);
+      }
     }
   }
   console.log('match', id, 'processed');
@@ -80,18 +82,20 @@ async function scheduler() {
 // create seed summoner doc if not exist
 async function createSeedSummoners() {
   const topSummoners = await lol.getTopSummoners();
-  const result = await collections.summoners.bulkWrite(
-      topSummoners.map((summoner) =>
-        ({
-          updateOne: {
-            filter: { summonerId: summoner.summonerId },
-            update: { $set: summoner },
-            upsert: true,
-          },
-        }),
-      ),
-  );
-  console.log(result);
+  if (topSummoners && topSummoners.length) {
+    const result = await collections.summoners.bulkWrite(
+        topSummoners.map((summoner) =>
+          ({
+            updateOne: {
+              filter: { summonerId: summoner.summonerId },
+              update: { $set: summoner },
+              upsert: true,
+            },
+          }),
+        ),
+    );
+    console.log(result);
+  }
 }
 
 async function completeSummoners() {

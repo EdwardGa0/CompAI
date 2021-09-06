@@ -1,5 +1,6 @@
 const axios = require('axios').default;
 const { RateLimiter } = require('limiter');
+const dotenv = require('dotenv');
 
 const apiKeys = [0, 1, 2].map((i) => process.env[`RIOT_API_KEY${i}`]);
 
@@ -39,24 +40,33 @@ async function get(
     });
     return res.data;
   } catch (error) {
-    if (attempts == apiKeys.length) {
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        console.error(error.response.data);
-      } else if (error.request) {
-        // The request was made but no response was received
-        // `error.request` is an instance of XMLHttpRequest in the browser
-        // and an instance of http.ClientRequest in node.js
-        console.error(error.request);
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        console.error('Error', error.message);
+    let keepAlive = false;
+    if (error.response) {
+      if ([401, 403].includes(error.response.status)) { // unauthorized
+        dotenv.config();
+        keepAlive = true;
       }
-      console.error(error.config);
-      return null;
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.log(error.response.data);
+    } else if (error.request) {
+      // The request was made but no response was received
+      // `error.request` is an instance of XMLHttpRequest in the browser
+      // and an instance of http.ClientRequest in node.js
+      console.log(error.request);
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.log('Error', error.message);
     }
-    return (await get(region, route, params, startIndex, attempts + 1));
+    console.log(error.config);
+    if (attempts < apiKeys.length) {
+      return (await get(region, route, params, startIndex, attempts + 1));
+    }
+    if (keepAlive) {
+      await new Promise((r) => setTimeout(r, 60000));
+      return (await get(region, route, params, startIndex));
+    }
+    return null;
   }
 }
 
