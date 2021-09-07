@@ -2,11 +2,13 @@ const axios = require('axios').default;
 const { RateLimiter } = require('limiter');
 const dotenv = require('dotenv');
 const fs = require('fs');
+const path = require('path');
 
 let apiKeys;
+const dotenvPath = path.resolve(process.cwd(), '.env');
 
 function updateApiKeys() {
-  const config = dotenv.parse(fs.readFileSync('../.env'));
+  const config = dotenv.parse(fs.readFileSync(dotenvPath));
   apiKeys = [0, 1, 2].map((i) => config[`RIOT_API_KEY${i}`]);
 }
 
