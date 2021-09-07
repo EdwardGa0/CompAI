@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('log-timestamp');
 
 const { MongoClient } = require('mongodb');
 const _ = require('lodash');
@@ -59,7 +60,9 @@ async function worker(id) {
 
 async function scheduler() {
   // go through oldest last update summoners and added matches to queue
-  const cursor = await collections.summoners.find().sort( { lastAnalyzed: 1 });
+  const cursor = await collections.summoners.find({
+    puuid: { $exists: true },
+  }).sort( { lastAnalyzed: 1 });
   for await (const summoner of cursor) {
     const diff = Math.abs(summoner.lastAnalyzed - new Date());
     const milliPerGame = 30 * 60 * 1000;
@@ -109,8 +112,6 @@ async function completeSummoners() {
     if (puuid) {
       const update = { $set: { puuid } };
       await collections.summoners.updateOne(filter, update);
-    } else {
-      await collections.summoners.deleteMany(filter);
     }
     console.log('set puuid of summonerId', summoner.summonerId);
   }

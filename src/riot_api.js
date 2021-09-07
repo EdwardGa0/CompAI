@@ -1,8 +1,16 @@
 const axios = require('axios').default;
 const { RateLimiter } = require('limiter');
 const dotenv = require('dotenv');
+const fs = require('fs');
 
-const apiKeys = [0, 1, 2].map((i) => process.env[`RIOT_API_KEY${i}`]);
+let apiKeys;
+
+function updateApiKeys() {
+  const config = dotenv.parse(fs.readFileSync('../.env'));
+  apiKeys = [0, 1, 2].map((i) => config[`RIOT_API_KEY${i}`]);
+}
+
+updateApiKeys();
 
 const limiterSec = Array(3).fill(new RateLimiter({
   tokensPerInterval: 20, interval: 950,
@@ -40,31 +48,25 @@ async function get(
     });
     return res.data;
   } catch (error) {
-    let keepAlive = false;
     if (error.response) {
       if ([401, 403].includes(error.response.status)) { // unauthorized
-        dotenv.config();
-        keepAlive = true;
+        updateApiKeys();
       }
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
-      console.log(error.response.data);
+      console.error(error.response.data);
     } else if (error.request) {
       // The request was made but no response was received
       // `error.request` is an instance of XMLHttpRequest in the browser
       // and an instance of http.ClientRequest in node.js
-      console.log(error.request);
+      console.error(error.request);
     } else {
       // Something happened in setting up the request that triggered an Error
-      console.log('Error', error.message);
+      console.error('Error', error.message);
     }
-    console.log(error.config);
+    console.error(error.config);
     if (attempts < apiKeys.length) {
       return (await get(region, route, params, startIndex, attempts + 1));
-    }
-    if (keepAlive) {
-      await new Promise((r) => setTimeout(r, 60000));
-      return (await get(region, route, params, startIndex));
     }
     return null;
   }
