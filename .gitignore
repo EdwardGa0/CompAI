@@ -1,5 +1,6 @@
 .vscode
-.eslintrc.js
-.env
-node_modules
-test
+worker/.eslintrc.js
+worker/.env
+worker/node_modules
+worker/test
+train
