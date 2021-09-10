@@ -52,8 +52,18 @@ async function get(
     return res.data;
   } catch (error) {
     if (error.response) {
-      if ([401, 403].includes(error.response.status)) { // unauthorized
-        updateApiKeys();
+      switch (error.response.status) {
+        case 401:
+        case 403:
+          updateApiKeys();
+          break;
+        case 429:
+          await limiterSec[keyIndex].removeTokens(
+              limiterSec[keyIndex].getTokensRemaining(),
+          );
+          await limiterMin[keyIndex].removeTokens(
+              limiterMin[keyIndex].getTokensRemaining(),
+          );
       }
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
