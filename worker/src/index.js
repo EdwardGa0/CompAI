@@ -144,8 +144,8 @@ async function run() {
   try {
     await client.connect();
     const database = client.db('match_history');
-    collections.summoners = database.collection('summoners');
-    collections.matches = database.collection('matches_11.18');
+    collections.summoners = database.collection('summoners_11.18');
+    collections.matches = database.collection('matches');
 
     await createSeedSummoners();
     // eslint-disable-next-line no-constant-condition
