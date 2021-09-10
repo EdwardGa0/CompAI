@@ -1,4 +1,4 @@
-require('dotenv').config({ path: __dirname + '/../.env' });
+require('dotenv').config();
 require('log-timestamp');
 
 const { MongoClient } = require('mongodb');
