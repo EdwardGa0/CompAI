@@ -4,27 +4,28 @@ const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
 
+const numKeys = 4;
 let apiKeys;
 const dotenvPath = path.resolve(process.cwd(), '.env');
 
 function updateApiKeys() {
   const config = dotenv.parse(fs.readFileSync(dotenvPath));
-  apiKeys = [0, 1, 2].map((i) => config[`RIOT_API_KEY${i}`]);
+  apiKeys = [...Array(numKeys).keys()].map((i) => config[`RIOT_API_KEY${i}`]);
 }
 
 updateApiKeys();
 
-const limiterSec = Array(3).fill(new RateLimiter({
+const limiterSec = Array(numKeys).fill(new RateLimiter({
   tokensPerInterval: 20, interval: 950,
 }));
 
-const limiterMin = Array(3).fill(new RateLimiter({
+const limiterMin = Array(numKeys).fill(new RateLimiter({
   tokensPerInterval: 100, interval: 119000,
 }));
 
 function indexWithMaxTokens() {
   let index = 0;
-  for (let i = 1; i < apiKeys.length; i += 1) {
+  for (let i = 1; i < numKeys; i += 1) {
     if (limiterSec[i].getTokensRemaining() >
         limiterSec[index].getTokensRemaining()) {
       index = i;
@@ -40,7 +41,7 @@ async function get(
     startIndex = indexWithMaxTokens(),
     attempts = 0,
 ) {
-  const keyIndex = (startIndex + attempts) % apiKeys.length;
+  const keyIndex = (startIndex + attempts) % numKeys;
   await limiterSec[keyIndex].removeTokens(1);
   await limiterMin[keyIndex].removeTokens(1);
   try {
@@ -67,7 +68,7 @@ async function get(
       console.error('Error', error.message);
     }
     console.error(error.config);
-    if (attempts < apiKeys.length) {
+    if (attempts < numKeys) {
       return (await get(region, route, params, startIndex, attempts + 1));
     }
     return null;
