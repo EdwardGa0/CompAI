@@ -32,7 +32,7 @@ async function worker(id) {
     participants: match.info.participants.map((participant) => (
       _.pick(
           participant,
-          ['championId', 'championName', 'lane', 'puuid'],
+          ['championId', 'championName', 'puuid'],
       )),
     ),
     blueWin: match.info.teams[0].win,
@@ -125,29 +125,28 @@ async function completeSummoners() {
   console.log('set last analyzed');
 }
 
-async function completeMatches() {
-  const cursor = collections.matches.find({
-    blueWin: { $exists: false },
-  });
-  for await (const match of cursor) {
-    const fullMatch = await lol.getMatch(match.matchId);
-    match.blueWin = fullMatch.info.teams[0].win;
-    await collections.matches.updateOne(
-        { matchId: match.matchId },
-        { $set: match },
-    );
-    console.log('match', match.matchId, 'set outcome');
-  }
-}
+// async function completeMatches() {
+//   const cursor = collections.matches.find({
+//     blueWin: { $exists: false },
+//   });
+//   for await (const match of cursor) {
+//     const fullMatch = await lol.getMatch(match.matchId);
+//     match.blueWin = fullMatch.info.teams[0].win;
+//     await collections.matches.updateOne(
+//         { matchId: match.matchId },
+//         { $set: match },
+//     );
+//     console.log('match', match.matchId, 'set outcome');
+//   }
+// }
 
 async function run() {
   try {
     await client.connect();
     const database = client.db('match_history');
     collections.summoners = database.collection('summoners');
-    collections.matches = database.collection('matches');
+    collections.matches = database.collection('matches_11.18');
 
-    await completeMatches();
     await createSeedSummoners();
     // eslint-disable-next-line no-constant-condition
     while (true) {
