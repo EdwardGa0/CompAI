@@ -45,7 +45,7 @@ async function get(
   await limiterMin[keyIndex].removeTokens(1);
   try {
     const host = `https://${region}.api.riotgames.com`;
-    const res = await axios.get(host + route, {
+    const res = await axios.get(encodeURI(host + route), {
       params: { api_key: apiKeys[keyIndex], ...params },
     });
     return res.data;

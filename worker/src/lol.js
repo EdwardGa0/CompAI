@@ -18,11 +18,10 @@ async function puuidToSummoner(puuid) {
   if (data) return data;
 }
 
-async function summonerToPuuid(summoner) {
-  const summonerId = summoner.summonerId || summoner.id;
-  const route = `/lol/summoner/v4/summoners/${summonerId}`;
+async function nameToSummoner(summonerName) {
+  const route = `/lol/summoner/v4/summoners/by-name/${summonerName}`;
   const data = await riotApi.get('na1', route);
-  if (data) return data.puuid;
+  if (data) return data;
 }
 
 async function puuidToMatchIds(puuid, count) {
@@ -41,7 +40,7 @@ async function getMatch(matchId) {
 module.exports = {
   getTopSummoners,
   puuidToSummoner,
-  summonerToPuuid,
+  nameToSummoner,
   puuidToMatchIds,
   getMatch,
 };

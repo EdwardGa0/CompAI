@@ -91,7 +91,7 @@ async function createSeedSummoners() {
         topSummoners.map((summoner) =>
           ({
             updateOne: {
-              filter: { summonerId: summoner.summonerId },
+              filter: { summonerName: summoner.summonerName },
               update: { $set: summoner },
               upsert: true,
             },
@@ -108,7 +108,7 @@ async function completeSummoners() {
     puuid: { $not: { $exists: true, $ne: null } },
   });
   for await (const summoner of cursor) {
-    const puuid = await lol.summonerToPuuid(summoner);
+    const puuid = await lol.nameToSummoner(summoner.summonerName).puuid;
     const filter = { summonerId: summoner.summonerId };
     if (puuid) {
       const update = { $set: { puuid } };
@@ -140,13 +140,30 @@ async function completeSummoners() {
 //   }
 // }
 
+async function refreshPuuids() {
+  const cursor = collections.summoners.find();
+  for await (const summoner of cursor) {
+    const newSummoner = await lol.nameToSummoner(summoner.summonerName);
+    if (newSummoner) {
+      await collections.summoners.updateOne(
+          { summonerName: summoner.summonerName },
+          { $set: newSummoner },
+      );
+      console.log(summoner.summonerName, 'updated');
+    } else {
+      collections.summoners.deleteMany({ summonerName: summoner.summonerName });
+    }
+  }
+}
+
 async function run() {
   try {
     await client.connect();
     const database = client.db('match_history');
-    collections.summoners = database.collection('summoners_11.18');
+    collections.summoners = database.collection('summoners');
     collections.matches = database.collection('matches');
 
+    await refreshPuuids();
     await createSeedSummoners();
     // eslint-disable-next-line no-constant-condition
     while (true) {
