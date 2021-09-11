@@ -141,17 +141,38 @@ async function completeSummoners() {
 // }
 
 async function refreshPuuids() {
+  collections.summoners.deleteMany({
+    $and: [
+      { summonerName: { $exists: false } },
+      { name: { $exists: false } },
+    ],
+  });
   const cursor = collections.summoners.find();
   for await (const summoner of cursor) {
-    const newSummoner = await lol.nameToSummoner(summoner.summonerName);
-    if (newSummoner) {
-      await collections.summoners.updateOne(
-          { summonerName: summoner.summonerName },
-          { $set: newSummoner },
-      );
-      console.log(summoner.summonerName, 'updated');
-    } else {
-      collections.summoners.deleteMany({ summonerName: summoner.summonerName });
+    if (summoner.summonerName) {
+      const newSummoner = await lol.nameToSummoner(summoner.summonerName);
+      if (newSummoner) {
+        await collections.summoners.updateOne(
+            { summonerName: summoner.summonerName },
+            { $set: newSummoner },
+        );
+        console.log(summoner.summonerName, 'updated');
+      } else {
+        collections.summoners.deleteMany(
+            { summonerName: summoner.summonerName },
+        );
+      }
+    } else if (summoner.name) {
+      const newSummoner = await lol.nameToSummoner(summoner.name);
+      if (newSummoner) {
+        await collections.summoners.updateOne(
+            { name: summoner.name },
+            { $set: newSummoner },
+        );
+        console.log(summoner.name, 'updated');
+      } else {
+        collections.summoners.deleteMany({ name: summoner.name });
+      }
     }
   }
 }
