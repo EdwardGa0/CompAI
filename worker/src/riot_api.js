@@ -6,7 +6,7 @@ const path = require('path');
 
 const numKeys = 4;
 let apiKeys;
-const dotenvPath = path.resolve(process.cwd(), '.env');
+const dotenvPath = path.resolve(path.dirname(process.cwd()), '.env');
 
 function updateApiKeys() {
   const config = dotenv.parse(fs.readFileSync(dotenvPath));
