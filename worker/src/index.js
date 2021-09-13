@@ -124,7 +124,7 @@ async function completeSummoners() {
   console.log('summoner names filled');
 
   // delete duplicate
-  const names = collections.summoners.distinct('name');
+  const names = await collections.summoners.distinct('name');
   for (const name of names) {
     cursor = collections.summoners.find({ name });
     if (cursor.count() > 1) {
