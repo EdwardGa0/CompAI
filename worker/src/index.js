@@ -115,12 +115,25 @@ async function completeSummoners() {
   });
   for await (const summoner of cursor) {
     if (summoner.summonerName) {
-      await collections.summoners.updateOne(
+      await collections.summoners.updateMany(
           { summonerName: summoner.summonerName },
           { $set: { name: summoner.summonerName } },
       );
     }
   }
+  console.log('summoner names filled');
+
+  // delete duplicate
+  const names = collections.summoners.distinct('name');
+  for (const name of names) {
+    cursor = collections.summoners.find({ name });
+    if (cursor.count() > 1) {
+      const summoner = await cursor.next();
+      await collections.summoners.deleteMany({ name });
+      await collections.summoners.insertOne(summoner);
+    }
+  }
+  console.log('duplicates deleted');
 
   // set puuid for all summoners
   cursor = collections.summoners.find({

@@ -1,69 +1,28 @@
 const axios = require('axios').default;
 const { RateLimiter } = require('limiter');
-const dotenv = require('dotenv');
-const fs = require('fs');
-const path = require('path');
 
-const numKeys = 4;
-let apiKeys;
-const dotenvPath = path.resolve(process.cwd(), '.env');
+const limiterSec = new RateLimiter({
+  tokensPerInterval: 20, interval: 1000,
+});
 
-function updateApiKeys() {
-  const config = dotenv.parse(fs.readFileSync(dotenvPath));
-  apiKeys = [...Array(numKeys).keys()].map((i) => config[`RIOT_API_KEY${i}`]);
-}
+const limiterMin = new RateLimiter({
+  tokensPerInterval: 100, interval: 120000,
+});
 
-updateApiKeys();
-
-const limiterSec = Array(numKeys).fill(new RateLimiter({
-  tokensPerInterval: 20, interval: 950,
-}));
-
-const limiterMin = Array(numKeys).fill(new RateLimiter({
-  tokensPerInterval: 100, interval: 119000,
-}));
-
-function indexWithMaxTokens() {
-  let index = 0;
-  for (let i = 1; i < numKeys; i += 1) {
-    if (limiterSec[i].getTokensRemaining() >
-        limiterSec[index].getTokensRemaining()) {
-      index = i;
-    }
-  }
-  return index;
-}
-
-async function get(
-    region,
-    route,
-    params = {},
-    startIndex = indexWithMaxTokens(),
-    attempts = 0,
-) {
-  const keyIndex = (startIndex + attempts) % numKeys;
-  await limiterSec[keyIndex].removeTokens(1);
-  await limiterMin[keyIndex].removeTokens(1);
+async function get(region, route, params = {}) {
+  await limiterSec.removeTokens(1);
+  await limiterMin.removeTokens(1);
   try {
     const host = `https://${region}.api.riotgames.com`;
     const res = await axios.get(encodeURI(host + route), {
-      params: { api_key: apiKeys[keyIndex], ...params },
+      params: { api_key: process.env.RIOT_API_KEY, ...params },
     });
     return res.data;
   } catch (error) {
     if (error.response) {
-      switch (error.response.status) {
-        case 401:
-        case 403:
-          updateApiKeys();
-          break;
-        case 429:
-          await limiterSec[keyIndex].removeTokens(
-              limiterSec[keyIndex].getTokensRemaining(),
-          );
-          await limiterMin[keyIndex].removeTokens(
-              limiterMin[keyIndex].getTokensRemaining(),
-          );
+      if (error.response.status == 429) { // rate limit exceeded
+        await limiterSec.removeTokens(limiterSec.getTokensRemaining());
+        await limiterMin.removeTokens(limiterMin.getTokensRemaining());
       }
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
@@ -78,9 +37,6 @@ async function get(
       console.error('Error', error.message);
     }
     console.error(error.config);
-    if (attempts < numKeys) {
-      return (await get(region, route, params, startIndex, attempts + 1));
-    }
     return null;
   }
 }
