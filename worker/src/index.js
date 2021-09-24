@@ -23,7 +23,6 @@ function daysAgo(n) {
 async function worker(id) {
   const match = await lol.getMatch(id);
   if (!match) return;
-
   // add match
   const options = { upsert: true };
   const filteredMatch = {
@@ -40,24 +39,6 @@ async function worker(id) {
   const filter = { matchId: id };
   const update = { $set: filteredMatch };
   await collections.matches.updateOne(filter, update, options);
-
-  // add players
-  const puuids = filteredMatch.participants.map(
-      (participant) => participant.puuid,
-  );
-  for (const puuid of puuids) {
-    let summoner = await collections.summoners.findOne({ puuid });
-    if (!summoner || _.isEmpty(summoner)) {
-      summoner = await lol.puuidToSummoner(puuid);
-      if (summoner) {
-        summoner.lastAnalyzed = daysAgo(3);
-        if (!summoner.name) {
-          summoner.name = summoner.summonerName;
-        }
-        await collections.summoners.insertOne(summoner);
-      }
-    }
-  }
   console.log('match', id, 'processed');
 }
 
@@ -71,7 +52,7 @@ async function scheduler() {
     const diff = Math.abs(summoner.lastAnalyzed - new Date());
     const milliPerGame = 30 * 60 * 1000;
     const count = Math.min(Math.floor(diff / milliPerGame), 100);
-    if (count > 0) {
+    if (count) {
       const matchIds = await lol.puuidToMatchIds(summoner.puuid, count);
       if (matchIds && matchIds.length) {
         for (const id of matchIds) {
@@ -81,23 +62,36 @@ async function scheduler() {
         const update = { $set: { lastAnalyzed: new Date() } };
         collections.summoners.updateOne(filter, update);
         console.log('summoner puuid', summoner.puuid, 'scheduled');
+      } else {
+        await updateSummoner(summoner);
       }
     }
   }
 }
 
+async function updateSummoner(summoner) {
+  const summonerName = summoner.summonerName;
+  const newSummoner = await lol.nameToSummoner(summonerName);
+  if (newSummoner) {
+    await collections.summoners.updateOne(
+        { summonerName },
+        { $set: newSummoner },
+    );
+    console.log(summonerName, 'updated');
+  } else {
+    collections.summoners.deleteMany({ summonerName });
+  }
+}
+
 // create seed summoner doc if not exist
-async function createSeedSummoners() {
-  const topSummoners = await lol.getTopSummoners();
+async function addSummoners() {
+  const topSummoners = await lol.topSummoners();
   if (topSummoners && topSummoners.length) {
     const result = await collections.summoners.bulkWrite(
         topSummoners.map((summoner) => {
-          if (!summoner.name) {
-            summoner.name = summoner.summonerName;
-          }
           return {
             updateOne: {
-              filter: { name: summoner.name },
+              filter: { summonerName: summoner.summonerName },
               update: { $set: summoner },
               upsert: true,
             },
@@ -109,46 +103,24 @@ async function createSeedSummoners() {
 }
 
 async function completeSummoners() {
-  // fill name attribute
-  let cursor = collections.summoners.find({
-    name: { $exists: false },
-  });
-  for await (const summoner of cursor) {
-    if (summoner.summonerName) {
-      await collections.summoners.updateMany(
-          { summonerName: summoner.summonerName },
-          { $set: { name: summoner.summonerName } },
-      );
-    }
-  }
-  console.log('summoner names filled');
-
   // delete duplicate
-  const names = await collections.summoners.distinct('name');
-  for (const name of names) {
-    cursor = collections.summoners.find({ name });
+  const summonerNames = await collections.summoners.distinct('summonerName');
+  for (const summonerName of summonerNames) {
+    const cursor = collections.summoners.find({ summonerName });
     if (cursor.count() > 1) {
       const summoner = await cursor.next();
-      await collections.summoners.deleteMany({ name });
+      await collections.summoners.deleteMany({ summonerName });
       await collections.summoners.insertOne(summoner);
     }
   }
   console.log('duplicates deleted');
 
   // set puuid for all summoners
-  cursor = collections.summoners.find({
+  const cursor = collections.summoners.find({
     puuid: { $not: { $exists: true, $ne: null } },
   });
   for await (const summoner of cursor) {
-    const puuid = await lol.nameToSummoner(summoner.name).puuid;
-    const filter = { name: summoner.name };
-    if (puuid) {
-      const update = { $set: { puuid } };
-      await collections.summoners.updateOne(filter, update);
-    } else {
-      await collections.summoners.deleteOne(filter);
-    }
-    console.log('set puuid of', summoner.name);
+    await updateSummoner(summoner);
   }
   console.log('puuids complete');
 
@@ -159,58 +131,6 @@ async function completeSummoners() {
   console.log('set last analyzed');
 }
 
-// async function completeMatches() {
-//   const cursor = collections.matches.find({
-//     blueWin: { $exists: false },
-//   });
-//   for await (const match of cursor) {
-//     const fullMatch = await lol.getMatch(match.matchId);
-//     match.blueWin = fullMatch.info.teams[0].win;
-//     await collections.matches.updateOne(
-//         { matchId: match.matchId },
-//         { $set: match },
-//     );
-//     console.log('match', match.matchId, 'set outcome');
-//   }
-// }
-
-// async function refreshPuuids() {
-//   collections.summoners.deleteMany({
-//     $and: [
-//       { summonerName: { $exists: false } },
-//       { name: { $exists: false } },
-//     ],
-//   });
-//   const cursor = collections.summoners.find();
-//   for await (const summoner of cursor) {
-//     if (summoner.summonerName) {
-//       const newSummoner = await lol.nameToSummoner(summoner.summonerName);
-//       if (newSummoner) {
-//         await collections.summoners.updateOne(
-//             { summonerName: summoner.summonerName },
-//             { $set: newSummoner },
-//         );
-//         console.log(summoner.summonerName, 'updated');
-//       } else {
-//         collections.summoners.deleteMany(
-//             { summonerName: summoner.summonerName },
-//         );
-//       }
-//     } else if (summoner.name) {
-//       const newSummoner = await lol.nameToSummoner(summoner.name);
-//       if (newSummoner) {
-//         await collections.summoners.updateOne(
-//             { name: summoner.name },
-//             { $set: newSummoner },
-//         );
-//         console.log(summoner.name, 'updated');
-//       } else {
-//         collections.summoners.deleteMany({ name: summoner.name });
-//       }
-//     }
-//   }
-// }
-
 async function run() {
   try {
     await client.connect();
@@ -218,9 +138,9 @@ async function run() {
     collections.summoners = database.collection('summoners');
     collections.matches = database.collection('matches');
 
-    await createSeedSummoners();
     // eslint-disable-next-line no-constant-condition
     while (true) {
+      await addSummoners();
       await completeSummoners();
       await scheduler();
       console.log('done');
