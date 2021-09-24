@@ -58,7 +58,7 @@ async function nameToSummoner(summonerName) {
 
 async function puuidToMatchIds(puuid, count) {
   const route = `/lol/match/v5/matches/by-puuid/${puuid}/ids`;
-  const params = { count, type: 'ranked' };
+  const params = { count, type: 'ranked', queue: 420 };
   const data = await riotApi.get('americas', route, params);
   if (data) return data;
 }
