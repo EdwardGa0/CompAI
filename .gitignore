@@ -3,4 +3,8 @@ worker/.eslintrc.js
 worker/.env
 worker/node_modules
 worker/test
-train
+train/__pycache__
+train/.ipynb_checkpoints
+train/env
+train/src/__pycache__
+train/test
