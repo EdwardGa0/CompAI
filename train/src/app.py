@@ -6,7 +6,7 @@ app = Flask(__name__)
 @app.route("/api/predict")
 def hello_world():
     champs = request.args.get('champs').split(',')
-    res = predict(champs)[0].tolist()
+    res = predict(champs).tolist()
     return jsonify(res)
 
 if __name__ == '__main__':
