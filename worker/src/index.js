@@ -46,6 +46,7 @@ async function worker(id) {
 async function scheduler() {
   // go through oldest last update summoners and added matches to queue
   const cursor = await collections.summoners.find({
+    demoted: false,
     puuid: { $exists: true },
   }).sort( { lastAnalyzed: 1 });
   for await (const summoner of cursor) {
@@ -92,7 +93,7 @@ async function addSummoners() {
           return {
             updateOne: {
               filter: { summonerName: summoner.summonerName },
-              update: { $set: summoner },
+              update: { $set: { demoted: false, ...summoner } },
               upsert: true,
             },
           };
@@ -100,6 +101,12 @@ async function addSummoners() {
     );
     console.log(result);
   }
+  const summonerNames = topSummoners.map((summoner) => summoner.summonerName);
+  await collections.summoners.updateMany(
+      { summonerName: { $nin: summonerNames } },
+      { demoted: true },
+  );
+  console.log('set demoted');
 }
 
 async function completeSummoners() {
@@ -129,6 +136,13 @@ async function completeSummoners() {
   const update = { $set: { lastAnalyzed: daysAgo(3) } };
   await collections.summoners.updateMany(filter, update);
   console.log('set last analyzed');
+
+  // set demoted false
+  await collections.summoners.updateMany(
+      { demoted: { $exists: false } },
+      { demoted: false },
+  );
+  console.log('filled demoted');
 }
 
 async function run() {
@@ -140,6 +154,7 @@ async function run() {
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
+      console.log('ohoy there');
       await addSummoners();
       await completeSummoners();
       await scheduler();
