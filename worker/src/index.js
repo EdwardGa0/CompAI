@@ -104,11 +104,11 @@ async function addSummoners() {
   const summonerNames = topSummoners.map((summoner) => summoner.summonerName);
   await collections.summoners.updateMany(
       { summonerName: { $in: summonerNames } },
-      { demoted: false },
+      { $set: { demoted: false } },
   );
   await collections.summoners.updateMany(
       { summonerName: { $nin: summonerNames } },
-      { demoted: true },
+      { $set: { demoted: true } },
   );
   console.log('set demoted');
 }
@@ -144,7 +144,7 @@ async function completeSummoners() {
   // set demoted false
   await collections.summoners.updateMany(
       { demoted: { $exists: false } },
-      { demoted: false },
+      { $set: { demoted: false } },
   );
   console.log('filled demoted');
 }
