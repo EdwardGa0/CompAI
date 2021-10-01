@@ -3,7 +3,7 @@ import Search from './search'
 
 function App() {
   return (
-    <div className="App">
+    <div className='main-content'>
       <Search />
     </div>
   );

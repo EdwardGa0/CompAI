@@ -1,0 +1,44 @@
+.root {
+    
+}
+
+.search-bar {
+    border: none;
+    border-radius: 5px;
+    height: 20px;
+    font-size: 20px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+    outline: none;
+}
+
+.search-bar:focus {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.square-grid {
+    display: grid;
+    grid-template-rows: 1fr 100px 1fr;
+    grid-template-columns: repeat(5, 1fr);
+    margin: 50px;
+}
+
+.square {
+    width: 110px;
+    height: 110px;
+    overflow: hidden;
+}
+
+.square img {
+    margin: -5px 0px 0px -5px;
+}
+
+.wr-bar {
+    grid-column-start: 1;
+    grid-column-end: 6;
+    grid-row-start: 2;
+    grid-row-end: 3;
+    display: flex;
+    align-items: center;
+}

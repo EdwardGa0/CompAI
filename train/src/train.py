@@ -8,8 +8,10 @@ from sklearn import metrics
 import pickle
 from lol import champ_names
 import os
+from dotenv import load_dotenv
 
-mongo_uri = 'mongodb+srv://admin:admin123@cluster1.fk1yn.mongodb.net/match_history?retryWrites=true&w=majority'
+load_dotenv()
+mongo_uri = os.environ.get('MONGO_URI')
 client = MongoClient(mongo_uri)
 db = client.match_history
 

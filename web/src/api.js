@@ -6,6 +6,14 @@ async function getChampNames() {
   return Object.keys(data);
 }
 
+async function calcWR(champs) {
+  const data = (await axios.get('http://127.0.0.1:5000/api/predict', {
+    params: { champs }
+  })).data;
+  return data;
+}
+
 export {
-  getChampNames
+  getChampNames,
+  calcWR,
 };
