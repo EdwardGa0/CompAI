@@ -93,7 +93,7 @@ async function addSummoners() {
           return {
             updateOne: {
               filter: { summonerName: summoner.summonerName },
-              update: { $set: { demoted: false, ...summoner } },
+              update: { $set: summoner },
               upsert: true,
             },
           };
@@ -102,6 +102,10 @@ async function addSummoners() {
     console.log(result);
   }
   const summonerNames = topSummoners.map((summoner) => summoner.summonerName);
+  await collections.summoners.updateMany(
+      { summonerName: { $in: summonerNames } },
+      { demoted: false },
+  );
   await collections.summoners.updateMany(
       { summonerName: { $nin: summonerNames } },
       { demoted: true },
@@ -154,7 +158,6 @@ async function run() {
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      console.log('ohoy there');
       await addSummoners();
       await completeSummoners();
       await scheduler();

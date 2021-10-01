@@ -6,12 +6,11 @@ import { blue, red } from './color'
 import Bar from './bar'
 
 function Search() {
+  const newComp = () => new Array(10).fill().map(() => (
+    { name: '', src: '' }
+  ));
   const [fuse, setFuse] = useState(new Fuse([]));
-  const [comp, setComp] = useState(
-    new Array(10).fill().map(() => (
-      { name: '', src: '' }
-    ))
-  );
+  const [comp, setComp] = useState(newComp());
   const [pos, setPos] = useState(0);
   const [search, setSearch] = useState('');
   const [done, setDone] = useState(false);
@@ -44,9 +43,22 @@ function Search() {
     }
   }
 
+  function getNextPos() {
+    let i = 0;
+    while (comp[i].name && i < 9) {
+      if (i < 5) {
+        i += 5;
+      } else {
+        i -= 4;
+      }
+    }
+    return i;
+  }
+
   function handleSubmit(event) {
     setSearch('');
-    if (pos === 9) {
+    setPos(getNextPos())
+    if (pos === 9) {  // all champs filled
       setDone(true);
       const champsStr = comp.map((champ) => champ.name).toString()
       alert(champsStr);
@@ -55,14 +67,12 @@ function Search() {
         setBluewr(res[0] * 100);
         setRedwr(res[1] * 100);
       })
-    } else {
-      if (pos < 5) {
-        setPos(pos + 5);
-      } else {
-        setPos(pos - 4);
-      }
     }
     event.preventDefault();
+  }
+
+  const handlePosClick = (i) => () => {
+    setPos(i);
   }
 
   function squares() {
@@ -70,16 +80,24 @@ function Search() {
       <div
         style={{
           background: i < 5 ? blue : red,
+          outline: `1px solid ${i < 5 ? blue : red}`,
           opacity: pos === i || done ? 1 : 0.7,
         }}
         className='square'
         key={i}
+        onClick={handlePosClick(i)}
       >
         {champ.src &&
             <img src={champ.src} />
         }
       </div>
     )
+  }
+
+  function handleReset() {
+    setComp(newComp());
+    setPos(0);
+    setDone(false);
   }
 
   return (
@@ -90,17 +108,18 @@ function Search() {
           <Bar bluewr={bluewr} redwr={redwr} />
         </div>
       </div>
-      <form onSubmit={handleSubmit}>
-        <label>
+      <div className='search-wrapper'>
+        <form onSubmit={handleSubmit}>
           <input
             className='search-bar'
             type='text'
             value={search}
-            placeholder={`add a ${pos < 5 ? 'blue' : 'red'} side champion`}
+            placeholder={`Add a ${pos < 5 ? 'blue' : 'red'} side champion`}
             onChange={handleChange}
           />
-        </label>
-      </form>
+        </form>
+        <button onClick={handleReset}>Reset</button>
+      </div>
     </div>
   )
 }

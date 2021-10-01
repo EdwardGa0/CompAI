@@ -1,10 +1,9 @@
 .root {
-    
+
 }
 
 .search-bar {
     border: none;
-    border-radius: 5px;
     height: 20px;
     font-size: 20px;
     padding: 10px;
@@ -41,4 +40,18 @@
     grid-row-end: 3;
     display: flex;
     align-items: center;
+}
+
+button {
+    border: none;
+    height: 40px;
+    font-size: 20px;
+    background: #CE93D8;
+    color: black;
+    outline: none;
+}
+
+.search-wrapper {
+    display: flex;
+    justify-content: center;
 }
